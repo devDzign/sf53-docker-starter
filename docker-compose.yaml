@@ -1,0 +1,125 @@
+version: '3.8'
+
+networks:
+  dev:
+
+volumes:
+  db-data:
+  pgadmin:
+  var:
+
+services:
+
+  database:
+    image: 'postgres:alpine'
+    container_name: '${DOCKER_PROJET_NAME}_postgres'
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: main
+      POSTGRES_USER: main
+      POSTGRES_DB: '${DOCKER_PROJET_NAME}_db'
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - db-data:/var/lib/postgresql/data:rw
+    ports:
+      - '5431:5432'
+    networks:
+      - dev
+
+  pgadmin:
+    image: 'dpage/pgadmin4'
+    container_name: '${DOCKER_PROJET_NAME}_pgadmin'
+    restart: always
+    depends_on:
+      - database
+    environment:
+      PGADMIN_DEFAULT_EMAIL: 'pgadmin4@pgadmin.org'
+      PGADMIN_DEFAULT_PASSWORD: 'admin'
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/root/.pgadmin
+    ports:
+      - '85:80'
+    networks:
+      - dev
+
+  php:
+    build:
+      context: .
+      target: app_php
+    image: sf-docker/php:dev
+    container_name: '${DOCKER_PROJET_NAME}_php'
+    restart: on-failure
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: 1
+      PHP_DATE_TIMEZONE: "Europe/Paris"
+      XDEBUG_CONFIG: remote_host=docker.for.mac.localhost
+      PHP_IDE_CONFIG: serverName=localhost
+    depends_on:
+      - database
+    volumes:
+      - .:/app:rw,cached
+      - var:/app/var
+    networks:
+      - dev
+
+  nginx:
+    build:
+      context: .
+      target: app_nginx
+    image: sf-docker/nginx:dev
+    container_name: '${DOCKER_PROJET_NAME}_nginx'
+    restart: on-failure
+    depends_on:
+      - php
+    volumes:
+      - ./public:/app/public:ro
+    ports:
+      - "8080:80"
+    networks:
+      - dev
+
+
+  redis:
+    image: library/redis:6-alpine
+    container_name: '${DOCKER_PROJET_NAME}_redis'
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - dev
+
+#  redis-commander:
+#    container_name: '${DOCKER_PROJET_NAME}_redis-commander'
+##    hostname: redis-commander
+#    image: rediscommander/redis-commander:latest
+#    build: .
+#    restart: always
+#    depends_on:
+#      - redis
+#    environment:
+#        REDIS_HOSTS: 'local:redis:6379'
+#        HTTP_USER: root
+#        HTTP_PASSWORD: qwerty
+#    volumes:
+#      - pgadmin:/root/.pgadmin
+#    ports:
+#      - "8081:8081"
+#    networks:
+#      - dev
+
+  rabbitmq:
+    image: library/rabbitmq:3.8-management
+    container_name: '${DOCKER_PROJET_NAME}_mq'
+    ports: [5672, 15672]
+    networks:
+      - dev
+
+  mailer:
+    image: schickling/mailcatcher
+    container_name: '${DOCKER_PROJET_NAME}_mailer'
+    ports: [ 1025, 61418:1080 ]
+    networks:
+      - dev
+
