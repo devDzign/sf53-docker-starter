@@ -1,5 +1,6 @@
 ARG PHP_VERSION=7.4.14
 ARG NGINX_VERSION=1.18
+ARG NODE_VERSION=14
 
 FROM php:${PHP_VERSION}-fpm-alpine AS app_php
 
@@ -26,6 +27,8 @@ RUN docker-php-source extract \
 			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
 	)" \
 	&& apk add --no-cache --virtual .app-phpexts-rundeps $runDeps \
+	&& apk add nodejs-current \
+	&& apk add yarn \
 	&& pecl clear-cache \
     && docker-php-source delete \
     && apk del --purge .build-deps \
@@ -44,8 +47,9 @@ WORKDIR ${WORKDIR}
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # prevent the reinstallation of vendors at every changes in the source code
-COPY composer.json composer.lock symfony.lock ./
+COPY composer.json composer.lock symfony.lock package.json yarn.lock webpack.config.js ./
 RUN set -eux; \
+	yarn install; \
 	composer install --prefer-dist --no-autoloader --no-scripts  --no-progress --no-suggest; \
 	composer clear-cache
 
@@ -67,3 +71,4 @@ FROM nginx:${NGINX_VERSION}-alpine AS app_nginx
 COPY docker/nginx/conf.d/default.conf /etc/nginx/conf.d/
 
 WORKDIR /app/public
+

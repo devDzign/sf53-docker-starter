@@ -47,7 +47,7 @@ services:
     build:
       context: .
       target: app_php
-    image: sf-docker/php:dev
+    image: interinvest/php:dev
     container_name: '${DOCKER_PROJET_NAME}_php'
     restart: on-failure
     environment:

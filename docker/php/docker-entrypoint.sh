@@ -6,6 +6,7 @@ if [ "${1#-}" != "$1" ]; then
 fi
 
 if [ "$1" = 'php-fpm' ] || [ "$1" = 'bin/console' ]; then
+    chown -R www-data:www-data ./
     composer install --prefer-dist --no-progress --no-suggest --no-interaction
     bin/console assets:install --no-interaction
 
